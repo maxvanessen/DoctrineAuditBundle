@@ -50,7 +50,7 @@
                                     <td><code>{{ key }}</code></td>
                                     <td>
                                     {% if values.old is defined %}
-                                        {% if values.old is empty %}
+                                        {% if values.old is null %}
                                             {{ bootstrap.badge('null', 'secondary') }}
                                         {% else %}
                                             {{ bootstrap.text(helper.dump(values.old), 'danger') }}
@@ -65,7 +65,7 @@
                                     </td>
                                     <td>
                                     {% if values.new is defined %}
-                                        {% if values.new is empty %}
+                                        {% if values.new is null %}
                                             {{ bootstrap.badge('null', 'secondary') }}
                                         {% else %}
                                             {% if values.old is empty %}

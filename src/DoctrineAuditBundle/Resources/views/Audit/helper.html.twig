@@ -8,7 +8,11 @@
             {{ k }}: {{ helper.dump(v) }}{{ separator|default('<br/>')|raw }}
         {% endfor %}
     {% else %}
-        {{ value }}
+        {% if value == false %}
+            0
+        {% else %}
+            {{ value }}
+        {% endif %}
     {% endif %}
 {% endspaceless %}
 {% endmacro dump %}
@@ -56,7 +60,7 @@
             (<em>{{ helper.dump(target) }}</em>)
         {% endif %}
     {% endif %}
-    by <b>{{ entry.blame_user is null ? 'unknown user' : entry.blame_user }}</b>
+    by <b>{{ entry.blame_id is null ? 'unknown user' : entry.blame_id }}</b>
     {% if entry.ip is not empty %}
         , IP: {{ entry.ip }}
     {% endif %}
