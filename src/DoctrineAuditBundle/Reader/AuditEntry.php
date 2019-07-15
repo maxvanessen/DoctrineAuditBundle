@@ -2,45 +2,71 @@
 
 namespace DH\DoctrineAuditBundle\Reader;
 
+use JMS\Serializer\Annotation as Serializer;
+
 class AuditEntry
 {
     /**
      * @var int
+     *
+     * @Serializer\Type("int")
+     * @Serializer\Groups({"get_log"})
      */
     protected $id;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $type;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $object_id;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $diffs;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $blame_id;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $blame_user_firewall;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $ip;
 
     /**
      * @var string
+     *
+     * @Serializer\Type("string")
+     * @Serializer\Groups({"get_log"})
      */
     protected $created_at;
 
