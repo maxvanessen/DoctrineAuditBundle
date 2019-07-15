@@ -25,19 +25,9 @@ class AuditEntry
     protected $diffs;
 
     /**
-     * @var int
+     * @var string
      */
     protected $blame_id;
-
-    /**
-     * @var string
-     */
-    protected $blame_user;
-
-    /**
-     * @var string
-     */
-    protected $blame_user_fqdn;
 
     /**
      * @var string
@@ -62,9 +52,9 @@ class AuditEntry
     /**
      * Get the value of id.
      *
-     * @return int
+     * @return string
      */
-    public function getId(): int
+    public function getId(): string
     {
         return $this->id;
     }
@@ -97,24 +87,6 @@ class AuditEntry
     public function getUserId()
     {
         return $this->blame_id;
-    }
-
-    /**
-     * Get the value of blame_user.
-     *
-     * @return null|string
-     */
-    public function getUsername(): ?string
-    {
-        return $this->blame_user;
-    }
-
-    /**
-     * @return null|string
-     */
-    public function getUserFqdn(): ?string
-    {
-        return $this->blame_user_fqdn;
     }
 
     /**
