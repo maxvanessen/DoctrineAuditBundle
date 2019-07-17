@@ -2,10 +2,12 @@
 
 namespace DH\DoctrineAuditBundle\Helper;
 
+use AppBundle\Entity\Document;
 use DH\DoctrineAuditBundle\AuditConfiguration;
 use DH\DoctrineAuditBundle\User\UserInterface;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManager;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 
 class AuditHelper
 {
@@ -36,15 +38,15 @@ class AuditHelper
      * @param EntityManager $em
      * @param object        $entity
      *
-     * @throws \Doctrine\DBAL\DBALException
+     * @return mixed
      * @throws \Doctrine\ORM\Mapping\MappingException
      *
-     * @return mixed
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function id(EntityManager $em, $entity)
     {
         $meta = $em->getClassMetadata(\get_class($entity));
-        $pk = $meta->getSingleIdentifierFieldName();
+        $pk   = $meta->getSingleIdentifierFieldName();
 
         if (isset($meta->fieldMappings[$pk])) {
             $type = Type::getType($meta->fieldMappings[$pk]['type']);
@@ -59,11 +61,45 @@ class AuditHelper
         $targetEntity = $meta->getReflectionProperty($pk)->getValue($entity);
 
         $mapping = $meta->getAssociationMapping($pk);
-        $meta = $em->getClassMetadata($mapping['targetEntity']);
-        $pk = $meta->getSingleIdentifierFieldName();
-        $type = Type::getType($meta->fieldMappings[$pk]['type']);
+        $meta    = $em->getClassMetadata($mapping['targetEntity']);
+        $pk      = $meta->getSingleIdentifierFieldName();
+        $type    = Type::getType($meta->fieldMappings[$pk]['type']);
 
         return $this->value($em, $type, $meta->getReflectionProperty($pk)->getValue($targetEntity));
+    }
+
+    public function documentId(EntityManager $em, $entity)
+    {
+        $propertyAccessor = PropertyAccess::createPropertyAccessor();
+
+        if ($entity instanceof Document) {
+            return null;
+        }
+
+        $document = $propertyAccessor->getValue($entity, 'document');
+
+        if ($document instanceof Document) {
+            return $document->getId();
+        }
+
+        return null;
+    }
+
+    public function revisionId(EntityManager $em, $entity)
+    {
+        $propertyAccessor = PropertyAccess::createPropertyAccessor();
+
+        if ($entity instanceof Document) {
+            return $entity->getActiveRevisionId();
+        }
+
+        $document = $propertyAccessor->getValue($entity, 'document');
+
+        if ($document instanceof Document) {
+            return $document->getActiveRevisionId();
+        }
+
+        return null;
     }
 
     /**
@@ -73,10 +109,10 @@ class AuditHelper
      * @param object        $entity
      * @param array         $ch
      *
-     * @throws \Doctrine\DBAL\DBALException
+     * @return array
      * @throws \Doctrine\ORM\Mapping\MappingException
      *
-     * @return array
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function diff(EntityManager $em, $entity, array $ch): array
     {
@@ -93,9 +129,9 @@ class AuditHelper
                 $this->configuration->isAuditedField($entity, $fieldName)
             ) {
                 $mapping = $meta->fieldMappings[$fieldName];
-                $type = Type::getType($mapping['type']);
-                $o = $this->value($em, $type, $old);
-                $n = $this->value($em, $type, $new);
+                $type    = Type::getType($mapping['type']);
+                $o       = $this->value($em, $type, $old);
+                $n       = $this->value($em, $type, $new);
             } elseif (
                 $meta->hasAssociation($fieldName) &&
                 $meta->isSingleValuedAssociation($fieldName) &&
@@ -123,9 +159,9 @@ class AuditHelper
      * @param Type          $type
      * @param mixed         $value
      *
+     * @return mixed
      * @throws \Doctrine\DBAL\DBALException
      *
-     * @return mixed
      */
     private function value(EntityManager $em, Type $type, $value)
     {
@@ -138,12 +174,12 @@ class AuditHelper
         switch ($type->getName()) {
             case Type::DECIMAL:
             case Type::BIGINT:
-                $convertedValue = (string) $value;
+                $convertedValue = (string)$value;
 
                 break;
             case Type::INTEGER:
             case Type::SMALLINT:
-                $convertedValue = (int) $value;
+                $convertedValue = (int)$value;
 
                 break;
             case Type::FLOAT:
@@ -165,15 +201,15 @@ class AuditHelper
      */
     public function blame(): array
     {
-        $user_id = null;
-        $client_ip = null;
+        $user_id       = null;
+        $client_ip     = null;
         $user_firewall = null;
 
         $request = $this->configuration->getRequestStack()->getCurrentRequest();
         if (null !== $request) {
-        $client_ip = $request->getClientIp();
-        $user_firewall = null === $this->configuration->getFirewallMap()->getFirewallConfig($request) ? null : $this->configuration->getFirewallMap()->getFirewallConfig($request)->getName();
-    }
+            $client_ip     = $request->getClientIp();
+            $user_firewall = null === $this->configuration->getFirewallMap()->getFirewallConfig($request) ? null : $this->configuration->getFirewallMap()->getFirewallConfig($request)->getName();
+        }
 
         $user = $this->configuration->getUserProvider()->getUser();
         if ($user instanceof UserInterface) {
@@ -181,8 +217,8 @@ class AuditHelper
         }
 
         return [
-            'user_id' => $user_id,
-            'client_ip' => $client_ip,
+            'user_id'       => $user_id,
+            'client_ip'     => $client_ip,
             'user_firewall' => $user_firewall,
         ];
     }
@@ -194,10 +230,10 @@ class AuditHelper
      * @param object        $entity
      * @param mixed         $id
      *
-     * @throws \Doctrine\DBAL\DBALException
+     * @return array
      * @throws \Doctrine\ORM\Mapping\MappingException
      *
-     * @return array
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function summarize(EntityManager $em, $entity = null, $id = null): ?array
     {
@@ -206,12 +242,12 @@ class AuditHelper
         }
 
         $em->getUnitOfWork()->initializeObject($entity); // ensure that proxies are initialized
-        $meta = $em->getClassMetadata(\get_class($entity));
-        $pkName = $meta->getSingleIdentifierFieldName();
+        $meta    = $em->getClassMetadata(\get_class($entity));
+        $pkName  = $meta->getSingleIdentifierFieldName();
         $pkValue = $id ?? $this->id($em, $entity);
 
         if (method_exists($entity, '__toString')) {
-            $label = (string) $entity;
+            $label = (string)$entity;
         } else {
             $label = \get_class($entity).'#'.$pkValue;
         }
@@ -232,59 +268,73 @@ class AuditHelper
     public function getAuditTableColumns(): array
     {
         $columns = [
-            'id' => [
-                'type' => Type::INTEGER,
+            'id'                  => [
+                'type'    => Type::INTEGER,
                 'options' => [
                     'autoincrement' => true,
-                    'unsigned' => true,
+                    'unsigned'      => true,
                 ],
             ],
-            'type' => [
-                'type' => Type::STRING,
-                'options' => [
-                    'notnull' => true,
-                    'length' => 10,
-                ],
-            ],
-            'object_id' => [
-                'type' => Type::STRING,
-                'options' => [
-                    'notnull' => true,
-                ],
-            ],
-            'diffs' => [
-                'type' => Type::JSON_ARRAY,
+            'document_id'         => [
+                'type'    => Type::INTEGER,
                 'options' => [
                     'default' => null,
                     'notnull' => false,
                 ],
             ],
-            'blame_id' => [
-                'type' => Type::STRING,
+            'revision_id'         => [
+                'type'    => Type::INTEGER,
                 'options' => [
                     'default' => null,
                     'notnull' => false,
-                    'length' => 255,
+                ],
+            ],
+            'type'                => [
+                'type'    => Type::STRING,
+                'options' => [
+                    'notnull' => true,
+                    'length'  => 10,
+                ],
+            ],
+            'object_id'           => [
+                'type'    => Type::STRING,
+                'options' => [
+                    'notnull' => true,
+                ],
+            ],
+            'diffs'               => [
+                'type'    => Type::JSON_ARRAY,
+                'options' => [
+                    'default' => null,
+                    'notnull' => false,
+                ],
+            ],
+            'blame_id'            => [
+                'type'    => Type::STRING,
+                'options' => [
+                    'default' => null,
+                    'notnull' => false,
+                    'length'  => 255,
                 ],
             ],
             'blame_user_firewall' => [
-                'type' => Type::STRING,
+                'type'    => Type::STRING,
                 'options' => [
                     'default' => null,
                     'notnull' => false,
-                    'length' => 100,
+                    'length'  => 100,
                 ],
             ],
-            'ip' => [
-                'type' => Type::STRING,
+            'ip'                  => [
+                'type'    => Type::STRING,
                 'options' => [
                     'default' => null,
                     'notnull' => false,
-                    'length' => 45,
+                    'length'  => 45,
                 ],
             ],
-            'created_at' => [
-                'type' => Type::DATETIME,
+            'created_at'          => [
+                'type'    => Type::DATETIME,
                 'options' => [
                     'notnull' => true,
                 ],
@@ -297,18 +347,18 @@ class AuditHelper
     public function getAuditTableIndices(string $tablename): array
     {
         $indices = [
-            'id' => [
+            'id'         => [
                 'type' => 'primary',
             ],
-            'type' => [
+            'type'       => [
                 'type' => 'index',
                 'name' => 'type_'.md5($tablename).'_idx',
             ],
-            'object_id' => [
+            'object_id'  => [
                 'type' => 'index',
                 'name' => 'object_id_'.md5($tablename).'_idx',
             ],
-            'blame_id' => [
+            'blame_id'   => [
                 'type' => 'index',
                 'name' => 'blame_id_'.md5($tablename).'_idx',
             ],

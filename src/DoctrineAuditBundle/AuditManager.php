@@ -4,6 +4,7 @@ namespace DH\DoctrineAuditBundle;
 
 use DH\DoctrineAuditBundle\Helper\AuditHelper;
 use Doctrine\ORM\EntityManager;
+use Nette\Utils\Json;
 
 class AuditManager
 {
@@ -26,7 +27,7 @@ class AuditManager
     public function __construct(AuditConfiguration $configuration, AuditHelper $helper)
     {
         $this->configuration = $configuration;
-        $this->helper = $helper;
+        $this->helper        = $helper;
     }
 
     /**
@@ -50,14 +51,19 @@ class AuditManager
     public function insert(EntityManager $em, $entity, array $ch): void
     {
         $meta = $em->getClassMetadata(\get_class($entity));
-        $this->audit($em, [
-            'action' => 'insert',
-            'blame' => $this->helper->blame(),
-            'diff' => $this->helper->diff($em, $entity, $ch),
-            'table' => $meta->getTableName(),
-            'schema' => $meta->getSchemaName(),
-            'id' => $this->helper->id($em, $entity),
-        ]);
+        $this->audit(
+            $em,
+            [
+                'action'      => 'insert',
+                'blame'       => $this->helper->blame(),
+                'diff'        => $this->helper->diff($em, $entity, $ch),
+                'table'       => $meta->getTableName(),
+                'schema'      => $meta->getSchemaName(),
+                'id'          => $this->helper->id($em, $entity),
+                'document_id' => $this->helper->documentId($em, $entity),
+                'revision_id' => $this->helper->revisionId($em, $entity),
+            ]
+        );
     }
 
     /**
@@ -77,14 +83,19 @@ class AuditManager
             return; // if there is no entity diff, do not log it
         }
         $meta = $em->getClassMetadata(\get_class($entity));
-        $this->audit($em, [
-            'action' => 'update',
-            'blame' => $this->helper->blame(),
-            'diff' => $diff,
-            'table' => $meta->getTableName(),
-            'schema' => $meta->getSchemaName(),
-            'id' => $this->helper->id($em, $entity),
-        ]);
+        $this->audit(
+            $em,
+            [
+                'action'      => 'update',
+                'blame'       => $this->helper->blame(),
+                'diff'        => $diff,
+                'table'       => $meta->getTableName(),
+                'schema'      => $meta->getSchemaName(),
+                'id'          => $this->helper->id($em, $entity),
+                'document_id' => $this->helper->documentId($em, $entity),
+                'revision_id' => $this->helper->revisionId($em, $entity),
+            ]
+        );
     }
 
     /**
@@ -100,14 +111,19 @@ class AuditManager
     public function remove(EntityManager $em, $entity, $id): void
     {
         $meta = $em->getClassMetadata(\get_class($entity));
-        $this->audit($em, [
-            'action' => 'remove',
-            'blame' => $this->helper->blame(),
-            'diff' => $this->helper->summarize($em, $entity, $id),
-            'table' => $meta->getTableName(),
-            'schema' => $meta->getSchemaName(),
-            'id' => $id,
-        ]);
+        $this->audit(
+            $em,
+            [
+                'action'      => 'remove',
+                'blame'       => $this->helper->blame(),
+                'diff'        => $this->helper->summarize($em, $entity, $id),
+                'table'       => $meta->getTableName(),
+                'schema'      => $meta->getSchemaName(),
+                'id'          => $id,
+                'document_id' => $this->helper->documentId($em, $entity),
+                'revision_id' => $this->helper->revisionId($em, $entity),
+            ]
+        );
     }
 
     /**
@@ -176,14 +192,14 @@ class AuditManager
         $meta = $em->getClassMetadata(\get_class($source));
         $data = [
             'action' => $type,
-            'blame' => $this->helper->blame(),
-            'diff' => [
+            'blame'  => $this->helper->blame(),
+            'diff'   => [
                 'source' => $this->helper->summarize($em, $source),
                 'target' => $this->helper->summarize($em, $target),
             ],
-            'table' => $meta->getTableName(),
+            'table'  => $meta->getTableName(),
             'schema' => $meta->getSchemaName(),
-            'id' => $this->helper->id($em, $source),
+            'id'     => $this->helper->id($em, $source),
         ];
 
         if (isset($mapping['joinTable']['name'])) {
@@ -203,16 +219,18 @@ class AuditManager
      */
     private function audit(EntityManager $em, array $data): void
     {
-        $schema = $data['schema'] ? $data['schema'].'.' : '';
+        $schema     = $data['schema'] ? $data['schema'].'.' : '';
         $auditTable = $schema.$this->configuration->getTablePrefix().$data['table'].$this->configuration->getTableSuffix();
-        $fields = [
-            'type' => ':type',
-            'object_id' => ':object_id',
-            'diffs' => ':diffs',
-            'blame_id' => ':blame_id',
+        $fields     = [
+            'type'                => ':type',
+            'object_id'           => ':object_id',
+            'diffs'               => ':diffs',
+            'blame_id'            => ':blame_id',
             'blame_user_firewall' => ':blame_user_firewall',
-            'ip' => ':ip',
-            'created_at' => ':created_at',
+            'ip'                  => ':ip',
+            'created_at'          => ':created_at',
+            'document_id'         => ':document_id',
+            'revision_id'         => ':revision_id',
         ];
 
         $query = sprintf(
@@ -226,12 +244,17 @@ class AuditManager
 
         $dt = new \DateTime('now', new \DateTimeZone('UTC'));
         $statement->bindValue('type', $data['action']);
-        $statement->bindValue('object_id', (string) $data['id']);
-        $statement->bindValue('diffs', json_encode($data['diff']));
+        $statement->bindValue('object_id', (string)$data['id']);
+        $statement->bindValue('diffs', Json::encode($data['diff']));
         $statement->bindValue('blame_id', $data['blame']['user_id']);
         $statement->bindValue('blame_user_firewall', $data['blame']['user_firewall']);
         $statement->bindValue('ip', $data['blame']['client_ip']);
         $statement->bindValue('created_at', $dt->format('Y-m-d H:i:s'));
+
+        // Check for Document/Revision id's
+        $statement->bindValue('document_id', $data['document_id'] ?? null);
+        $statement->bindValue('revision_id', $data['revision_id'] ?? null);
+
         $statement->execute();
     }
 
@@ -440,10 +463,10 @@ class AuditManager
 
     public function reset(): void
     {
-        $this->inserted = [];
-        $this->updated = [];
-        $this->removed = [];
-        $this->associated = [];
+        $this->inserted    = [];
+        $this->updated     = [];
+        $this->removed     = [];
+        $this->associated  = [];
         $this->dissociated = [];
     }
 }

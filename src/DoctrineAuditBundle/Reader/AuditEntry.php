@@ -3,6 +3,7 @@
 namespace DH\DoctrineAuditBundle\Reader;
 
 use JMS\Serializer\Annotation as Serializer;
+use Nette\Utils\Json;
 
 class AuditEntry
 {
@@ -13,6 +14,22 @@ class AuditEntry
      * @Serializer\Groups({"get_log"})
      */
     protected $id;
+
+    /**
+     * @var int|null
+     *
+     * @Serializer\Type("int")
+     * @Serializer\Groups({"get_log"})
+     */
+    protected $documentId;
+
+    /**
+     * @var int|null
+     *
+     * @Serializer\Type("int")
+     * @Serializer\Groups({"get_log"})
+     */
+    protected $revisionId;
 
     /**
      * @var string
@@ -86,6 +103,22 @@ class AuditEntry
     }
 
     /**
+     * @return int
+     */
+    public function getDocumentId(): ?int
+    {
+        return $this->documentId;
+    }
+
+    /**
+     * @return int
+     */
+    public function getRevisionId(): ?int
+    {
+        return $this->revisionId;
+    }
+
+    /**
      * Get the value of type.
      *
      * @return string
@@ -150,6 +183,6 @@ class AuditEntry
      */
     public function getDiffs(): ?array
     {
-        return json_decode($this->diffs, true);
+        return Json::decode($this->diffs, Json::FORCE_ARRAY);
     }
 }
