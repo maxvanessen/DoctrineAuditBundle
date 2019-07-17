@@ -76,10 +76,12 @@ class AuditHelper
             return null;
         }
 
-        $document = $propertyAccessor->getValue($entity, 'document');
+        if ($propertyAccessor->isReadable($entity, 'document')) {
+            $document = $propertyAccessor->getValue($entity, 'document');
 
-        if ($document instanceof Document) {
-            return $document->getId();
+            if ($document instanceof Document) {
+                return $document->getId();
+            }
         }
 
         return null;
@@ -93,10 +95,12 @@ class AuditHelper
             return $entity->getActiveRevisionId();
         }
 
-        $document = $propertyAccessor->getValue($entity, 'document');
+        if ($propertyAccessor->isReadable($entity, 'document')) {
+            $document = $propertyAccessor->getValue($entity, 'document');
 
-        if ($document instanceof Document) {
-            return $document->getActiveRevisionId();
+            if ($document instanceof Document) {
+                return $document->getActiveRevisionId();
+            }
         }
 
         return null;
