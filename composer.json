@@ -1,13 +1,13 @@
 {
-  "name": "damienharper/doctrine-audit-bundle",
+  "name": "maxvanessen/doctrine-audit-bundle",
   "type": "symfony-bundle",
   "description": "This bundle creates audit logs for all doctrine ORM database related changes.",
   "keywords": ["doctrine", "audit"],
   "license": "MIT",
   "authors": [
     {
-      "name": "Damien Harper",
-      "email": "damien.harper@gmail.com"
+      "name": "Max van Essen",
+      "email": "info@maxvanessen.nl"
     }
   ],
   "require": {
